@@ -1,70 +1,109 @@
-s = serialport('COM5', 9600);
+% Open a serial communication port (change 'COM' to your actual port)
+s = serialport('COM', 9600);
+
+% Configure the line terminator for incoming data
 configureTerminator(s, "LF");
+
+% Define the number of data values and storage size
 numValues = 12;  
 dataStorageSize = 1000;  
+
+% Initialize a buffer to store incoming data
 dataBuffer = zeros(dataStorageSize, numValues);
+
+% Initialize an index to keep track of the buffer position
 dataIndex = 1;
+
+% Create a figure for the orientation plot
 figure;
 
-% Orientation plot 
+% Initialize arrays to store pitch, yaw, and roll data
 pitch = zeros(100, 1);
 yaw = zeros(100, 1);
 roll = zeros(100, 1);
+
+% Create animated lines for each data series
 linePitch = animatedline('Color', 'b', 'LineWidth', 1.5);
 lineYaw = animatedline('Color', 'g', 'LineWidth', 1.5);
 lineRoll = animatedline('Color', 'r', 'LineWidth', 1.5);
-axis([1 100 -300 500]);  
+
+% Set axis limits and labels for the orientation plot
+axis([1 100 -300 500]);
 xlabel('Time');
 ylabel('Orientation (degrees)');
 grid on;
 legend('Pitch', 'Yaw', 'Roll');
 
-% Acceleration plot 
+% Create a figure for the acceleration plot
 figure;
+
+% Initialize arrays to store acceleration data
 accelX = zeros(100, 1);
 accelY = zeros(100, 1);
 accelZ = zeros(100, 1);
+
+% Create animated lines for each acceleration data series
 lineAccelX = animatedline('Color', 'b', 'LineWidth', 1.5);
 lineAccelY = animatedline('Color', 'g', 'LineWidth', 1.5);
 lineAccelZ = animatedline('Color', 'r', 'LineWidth', 1.5);
+
+% Set labels for the acceleration plot
 xlabel('Time');
 ylabel('Acceleration (m/s^2)');
 grid on;
 legend('AccelX', 'AccelY', 'AccelZ');
 
-% Gyroscope plot 
+% Create a figure for the gyroscope plot
 figure;
+
+% Initialize arrays to store gyroscope data
 gyroX = zeros(100, 1);
 gyroY = zeros(100, 1);
 gyroZ = zeros(100, 1);
+
+% Create animated lines for each gyroscope data series
 lineGyroX = animatedline('Color', 'b', 'LineWidth', 1.5);
 lineGyroY = animatedline('Color', 'g', 'LineWidth', 1.5);
 lineGyroZ = animatedline('Color', 'r', 'LineWidth', 1.5);
+
+% Set labels for the gyroscope plot
 xlabel('Time');
 ylabel('Gyroscope (rad/s)');
 grid on;
 legend('GyroX', 'GyroY', 'GyroZ');
 
+% Create a figure for the magnetic field plot
 figure;
+
+% Initialize arrays to store magnetic field data
 magX = zeros(100, 1);
 magY = zeros(100, 1);
 magZ = zeros(100, 1);
+
+% Create animated lines for each magnetic field data series
 lineMagX = animatedline('Color', 'b', 'LineWidth', 1.5);
 lineMagY = animatedline('Color', 'g', 'LineWidth', 1.5);
 lineMagZ = animatedline('Color', 'r', 'LineWidth', 1.5);
+
+% Set labels for the magnetic field plot
 xlabel('Time');
 ylabel('Magnetic Field (uT)');
 grid on;
 legend('MagX', 'MagY', 'MagZ');
 
+% Flush the serial port and open the port for communication
 flush(s);
 fopen(s);
 
 try
-    x = 1:100;  
+    x = 1:100;  % Time values for plotting
+    
+    % Main data reading and plotting loop
     while true
        dataLine = readline(s);
-        values = str2double(strsplit(dataLine, ','));        
+       values = str2double(strsplit(dataLine, ','));        
+
+        % Check if the correct number of values is received
         if numel(values) == numValues
             pitchValue = values(1);
             yawValue = values(2);
@@ -79,9 +118,11 @@ try
             magYValue = values(11);
             magZValue = values(12);
 
-            
+            % Store data in the buffer and update the index
             dataBuffer(dataIndex, :) = values;
             dataIndex = mod(dataIndex, dataStorageSize) + 1;
+
+            % Print received data to the console
             fprintf('Pitch: %.2f\n', pitchValue);
             fprintf('Yaw: %.2f\n', yawValue);
             fprintf('Roll: %.2f\n', rollValue);
@@ -94,6 +135,8 @@ try
             fprintf('MagX: %.2f\n', magXValue);
             fprintf('MagY: %.2f\n', magYValue);
             fprintf('MagZ: %.2f\n', magZValue);
+
+            % Shift and update data arrays for plotting
             pitch = circshift(pitch, [1, 0]);
             yaw = circshift(yaw, [1, 0]);
             roll = circshift(roll, [1, 0]);
@@ -107,6 +150,7 @@ try
             magY = circshift(magY, [1, 0]);
             magZ = circshift(magZ, [1, 0]);
 
+            % Update current data points
             pitch(1) = pitchValue;
             yaw(1) = yawValue;
             roll(1) = rollValue;
@@ -118,7 +162,9 @@ try
             gyroZ(1) = gyroZValue;
             magX(1) = magXValue;
             magY(1) = magYValue;
-            magZ(1) = magZValue;         
+            magZ(1) = magZValue;
+
+            % Update plot axis limits
             yMin = min([min(pitch), min(yaw), min(roll)]) - 10;
             yMax = max([max(pitch), max(yaw), max(roll)]) + 10;
             ylim([yMin, yMax]);
@@ -135,6 +181,7 @@ try
             yMaxMag = max([max(magX), max(magY), max(magZ)]) + 10;
             ylim(lineMagX.Parent, [yMinMag, yMaxMag]);
             
+            % Clear and update data points in the animated lines
             clearpoints(linePitch);
             clearpoints(lineYaw);
             clearpoints(lineRoll);
@@ -161,7 +208,7 @@ try
             addpoints(lineMagY, x, magY);
             addpoints(lineMagZ, x, magZ);
 
-            drawnow;  
+            drawnow;  % Update the plots
         else
             fprintf('Received invalid data: %s\n', dataLine);
         end
@@ -169,6 +216,12 @@ try
 catch e
     fprintf('Error reading data: %s\n', e.message);
 end
+
+% Close the serial port
 fclose(s);
+
+% Delete the serial port object
 delete(s);
+
+% Clear the serial port object from the workspace
 clear s;
